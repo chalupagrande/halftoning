@@ -17,7 +17,7 @@ function App() {
   // \__ \ _|  | |   | |  | || .` | (_ \__ \
   // |___/___| |_|   |_| |___|_|\_|\___|___/
 
-  const sampleDim = 40
+  const sampleDim = 20
   const maxDotRadius = sampleDim / 2
   //  _  _   _   _  _ ___  _    ___ ___
   // | || | /_\ | \| |   \| |  | __| _ \
