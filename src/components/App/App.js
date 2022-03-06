@@ -19,15 +19,15 @@ function App() {
   // / __| __|_   _|_   _|_ _| \| |/ __/ __|
   // \__ \ _|  | |   | |  | || .` | (_ \__ \
   // |___/___| |_|   |_| |___|_|\_|\___|___/
-  console.log("RENDER")
 
-  const sampleDim = 6
+  const sampleDim = 5
   const maxDotRadius = sampleDim / 2
+  const shape = "rect"
   const layers = {
     c: {rotation: 345, fill: "cyan"},
-    m: {rotation: 15, fill: "magenta"},
     y: {rotation: 0, fill: 'yellow'},
-    k: {rotation: 75, fill: 'black'}
+    m: {rotation: 15, fill: "magenta"},
+    k: {rotation: 75, fill: 'black'},
   }
   //  _  _   _   _  _ ___  _    ___ ___
   // | || | /_\ | \| |   \| |  | __| _ \
@@ -79,14 +79,26 @@ function App() {
           const m = getMatrix(imageData, x, y, sampleDim, key === 'k')
           const avg = averageChannelValueFromMatrix(m, key) || 0
           const radius = maxDotRadius * avg
+          let shapeToAdd;
           if(radius){
-            const circle = <circle
+            if(shape === 'circle') {
+              shapeToAdd = <circle
               key={`${key}-${x}.${y}`}
               r={radius}
               fill={fill}
               cx={x + maxDotRadius/2}
               cy={y+maxDotRadius/2}/>
-            circles.push(circle)
+            } else {
+              shapeToAdd = <rect
+              key={`${key}-${x}.${y}`}
+              width={radius * 2}
+              height={radius * 2}
+              fill={fill}
+              x={x}
+              y={y}/>
+            }
+
+            circles.push(shapeToAdd)
           }
         }
       }
@@ -121,7 +133,7 @@ function App() {
       <div>
         <input type="file" id="fileUpload" onChange={handleUpload}/>
         <button onClick={halftoneSVG}>Halftone</button>
-        <button onClick={save}>Save Halftone</button>
+        <button onClick={save}>Save Halftone SVG</button>
       </div>
       <canvas className="canvas" ref={canvasRef}></canvas>
       <svg  className="svg canvas" ref={svgRef}>
