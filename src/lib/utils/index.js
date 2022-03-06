@@ -53,12 +53,15 @@ export function getPixel(imageData, x,y){
  * @param {*} size
  * @returns
  */
-export function getMatrix(imageData, x, y, size){
+export function getMatrix(imageData, x, y, size, shouldDebug){
+  // if(shouldDebug) debugger
   const matrix = [...Array(size)].map(() => ([...Array(size)].map(() => 0)))
   if(x + size > imageData.width || y + size > imageData.height) return
   for(let i = 0; i < size; i++){
     for(let j = 0; j < size; j++){
-      matrix[i][j] = convertRGBToCMYK(getPixel(imageData, x + i, y + j))
+      const pixel = getPixel(imageData, x + i, y + j)
+      if(pixel.a === 0) continue
+      matrix[i][j] = convertRGBToCMYK(pixel)
     }
   }
 

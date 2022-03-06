@@ -1,11 +1,9 @@
 import React, {useEffect, useRef, useState} from 'react'
+import FileSaver from 'file-saver';
 import {
   getMatrix,
   averageChannelValueFromMatrix,
   getRotatedImage,
-  getPixel,
-  canvasToImage,
-  getRotationOrigin
 } from '../../lib/utils'
 import './App.css';
 
@@ -21,8 +19,9 @@ function App() {
   // / __| __|_   _|_   _|_ _| \| |/ __/ __|
   // \__ \ _|  | |   | |  | || .` | (_ \__ \
   // |___/___| |_|   |_| |___|_|\_|\___|___/
+  console.log("RENDER")
 
-  const sampleDim = 20
+  const sampleDim = 6
   const maxDotRadius = sampleDim / 2
   const layers = {
     c: {rotation: 345, fill: "cyan"},
@@ -45,6 +44,7 @@ function App() {
         canvas.height = img.height
         svg.setAttribute("height", img.height)
         svg.setAttribute("width", img.width)
+
         ctx.clearRect(0,0, ctx.canvas.width, ctx.canvas.height)
         ctx.drawImage(img, 0, 0)
       })
@@ -58,16 +58,16 @@ function App() {
 
   function halftoneSVG(){
     // loop over layers
-    const canvas = ctx.canvas
-    const width = canvas.width
-    const height = canvas.height
     const groups = []
     for(let [key, {rotation, fill}] of Object.entries(layers)){
       const {xOrigin: xTranslate, yOrigin: yTranslate} = getRotatedImage(image, ctx, rotation)
       const g = halftoneLayer(ctx, key, fill, rotation, xTranslate, yTranslate)
       groups.push(g)
     }
+    // reset image
+    getRotatedImage(image, ctx, 0)
     setGroups(groups)
+    console.log("DONE!!")
   }
 
   function halftoneLayer(ctx, key, fill, rotation, xTranslate, yTranslate){
@@ -76,15 +76,18 @@ function App() {
     const circles = []
     for(let x = 0; x < width - sampleDim; x +=sampleDim){
       for (let y = 0; y < height - sampleDim; y += sampleDim){
-          const m = getMatrix(imageData, x, y, sampleDim)
+          const m = getMatrix(imageData, x, y, sampleDim, key === 'k')
           const avg = averageChannelValueFromMatrix(m, key) || 0
-          const circle = <circle
-            key={`${key}-${x}.${y}`}
-            r={maxDotRadius * avg}
-            fill={fill}
-            cx={x + maxDotRadius/2}
-            cy={y+maxDotRadius/2}/>
-          circles.push(circle)
+          const radius = maxDotRadius * avg
+          if(radius){
+            const circle = <circle
+              key={`${key}-${x}.${y}`}
+              r={radius}
+              fill={fill}
+              cx={x + maxDotRadius/2}
+              cy={y+maxDotRadius/2}/>
+            circles.push(circle)
+          }
         }
       }
     return <g style={{
@@ -92,13 +95,14 @@ function App() {
     }} key={key} data-index={key}>{circles}</g>
   }
 
-
   function save(){
-
+    const svg_data = svgRef.current.innerHTML
+    const head = '<svg title="graph" version="1.1" xmlns="http://www.w3.org/2000/svg">'
+    const style = "<style></style>"
+    const full_svg = head +  style + svg_data + "</svg>"
+    const blob = new Blob([full_svg], {type: "image/svg+xml"});
+    FileSaver.saveAs(blob, "halftone.svg");
   }
-
-
-
 
   //  _    ___ ___ _____ ___ _  _ ___ ___  ___
   // | |  |_ _/ __|_   _| __| \| | __| _ \/ __|
@@ -117,7 +121,7 @@ function App() {
       <div>
         <input type="file" id="fileUpload" onChange={handleUpload}/>
         <button onClick={halftoneSVG}>Halftone</button>
-        <button onClick={save}>Save Halftone Image</button>
+        <button onClick={save}>Save Halftone</button>
       </div>
       <canvas className="canvas" ref={canvasRef}></canvas>
       <svg  className="svg canvas" ref={svgRef}>
