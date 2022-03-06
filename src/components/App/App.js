@@ -1,17 +1,22 @@
 import React, {useEffect, useRef, useState} from 'react'
-import { flatten, get } from 'lodash';
+import {
+  getMatrix,
+  averageChannelValueFromMatrix,
+  getRotatedImage,
+  getPixel,
+  canvasToImage,
+  getRotationOrigin
+} from '../../lib/utils'
 import './App.css';
 
 function App() {
   const canvasRef = useRef()
   const svgRef = useRef()
-  const [ctx, setCtx] = useState()
-  const [imageData, setImageData] = useState()
-  const [referenceImageData, setReferenceImageData] = useState()
+  const [image, setImage] = useState()
   const canvas = canvasRef.current
+  const [ctx, setCtx] = useState()
   const svg = svgRef.current
-  const [circles, setCircles] = useState([])
-  const colorFills = [['c', 'cyan'], ['m', 'magenta'], ['y', 'yellow'], ['k', 'black']]
+  const [groups, setGroups] = useState([])
   //  ___ ___ _____ _____ ___ _  _  ___ ___
   // / __| __|_   _|_   _|_ _| \| |/ __/ __|
   // \__ \ _|  | |   | |  | || .` | (_ \__ \
@@ -19,6 +24,12 @@ function App() {
 
   const sampleDim = 20
   const maxDotRadius = sampleDim / 2
+  const layers = {
+    c: {rotation: 345, fill: "cyan"},
+    m: {rotation: 15, fill: "magenta"},
+    y: {rotation: 0, fill: 'yellow'},
+    k: {rotation: 75, fill: 'black'}
+  }
   //  _  _   _   _  _ ___  _    ___ ___
   // | || | /_\ | \| |   \| |  | __| _ \
   // | __ |/ _ \| .` | |) | |__| _||   /
@@ -26,11 +37,9 @@ function App() {
   //
 
   function handleUpload(data){
-    console.log(data.target.files)
     const fileReader = new FileReader()
     fileReader.addEventListener("load", (e) => {
       const img = new Image()
-      console.log("img", img.width)
       img.addEventListener('load', ()=> {
         canvas.width = img.width
         canvas.height = img.height
@@ -38,103 +47,58 @@ function App() {
         svg.setAttribute("width", img.width)
         ctx.clearRect(0,0, ctx.canvas.width, ctx.canvas.height)
         ctx.drawImage(img, 0, 0)
-        const id = ctx.getImageData(0,0, img.width, img.height)
-        setImageData(id)
-        setReferenceImageData(id)
       })
       img.src = e.target.result
+      setImage(img)
+
     })
     fileReader.readAsDataURL(data.target.files[0])
   }
 
-  //Color at (x,y) position
-  function getPixel(x,y){
-    var color = {};
-    color['r'] = imageData.data[((y*(imageData.width*4)) + (x*4)) + 0];
-    color['g'] = imageData.data[((y*(imageData.width*4)) + (x*4)) + 1];
-    color['b'] = imageData.data[((y*(imageData.width*4)) + (x*4)) + 2];
-    color['a'] = imageData.data[((y*(imageData.width*4)) + (x*4)) + 3];
-    return color
-  }
 
-  // returns a matrix of colors
-  function getMatrix(x, y){
-    const matrix = [...Array(sampleDim)].map(() => ([...Array(sampleDim)].map(() => 0)))
-    if(x + sampleDim > imageData.width || y + sampleDim > imageData.height) return
-    for(let i = 0; i < sampleDim; i++){
-      for(let j = 0; j < sampleDim; j++){
-        matrix[i][j] = convertRGBToCMYK(getPixel(x + i, y + j))
-      }
+  function halftoneSVG(){
+    // loop over layers
+    const canvas = ctx.canvas
+    const width = canvas.width
+    const height = canvas.height
+    const groups = []
+    for(let [key, {rotation, fill}] of Object.entries(layers)){
+      const {xOrigin: xTranslate, yOrigin: yTranslate} = getRotatedImage(image, ctx, rotation)
+      const g = halftoneLayer(ctx, key, fill, rotation, xTranslate, yTranslate)
+      groups.push(g)
     }
-
-    return matrix
+    setGroups(groups)
   }
 
-  function averageChannelValueFromMatrix(matrix, channel){
-    const flat = flatten(matrix)
-    const total = flat.reduce((a, e) => a + e[channel], 0)
-    const avg = total / flat.length
-    return avg
-  }
-
-  function halfToneToSVG(){
-    const circleList = []
-    colorFills.forEach(([key, fill]) => {
-      for(let x = 0; x < imageData.width - sampleDim; x +=sampleDim){
-        for (let y = 0; y < imageData.height - sampleDim; y += sampleDim){
-            const m = getMatrix(x,y)
-            const avg = averageChannelValueFromMatrix(m, key)
-            const circle = <circle key={`${x}.${y}`} r={maxDotRadius * avg} fill={fill} cx={x + maxDotRadius} cy={y+maxDotRadius}/>
-            circleList.push(circle)
-          }
-        }
-    })
-    console.log(circleList)
-    setCircles(circleList)
-  }
-
-  function convertRGBToCMYK(rgbaColorObject){
-    const rRatio = rgbaColorObject.r / 255
-    const gRatio = rgbaColorObject.g / 255
-    const bRatio = rgbaColorObject.b / 255
-    const k = 1 - Math.max(rRatio,gRatio,bRatio)
-    const c = (1 - rRatio - k) / (1 - k)
-    const m = (1 - gRatio - k) / (1 - k)
-    const y = (1 - bRatio - k) / (1 - k)
-    return {c,m,y,k}
-  }
-
-
-  function toImageDataIndex(x,y){
-    return (y * imageData.width * 4) + (x*4)
-  }
-
-  // runs simple test
-  function test(){
-    halfToneToSVG()
-    // console.log(convertRGBToCMYK({r: 0, g: 0, b: 255, a: 255}))
-  }
-
-  // draws a square at the location
-  function drawSquareAt(x,y,size){
-    const copyImageData = new ImageData(
-      new Uint8ClampedArray(imageData.data),
-      imageData.width,
-      imageData.height
-    )
-    for(let i = 0; i < size; i++){
-      for(let j = 0; j < size; j++){
-        if(i === 0 || j === 0 || i === size - 1 || j === size - 1){
-          const pixelIndex = toImageDataIndex(x + i,y + j)
-          copyImageData.data[pixelIndex] = 0
-          copyImageData.data[pixelIndex + 1] = 0
-          copyImageData.data[pixelIndex + 2] = 0
-          copyImageData.data[pixelIndex + 3] = 0
+  function halftoneLayer(ctx, key, fill, rotation, xTranslate, yTranslate){
+    const {width, height} = ctx.canvas
+    const imageData = ctx.getImageData(0,0, width, height)
+    const circles = []
+    for(let x = 0; x < width - sampleDim; x +=sampleDim){
+      for (let y = 0; y < height - sampleDim; y += sampleDim){
+          const m = getMatrix(imageData, x, y, sampleDim)
+          const avg = averageChannelValueFromMatrix(m, key) || 0
+          const circle = <circle
+            key={`${key}-${x}.${y}`}
+            r={maxDotRadius * avg}
+            fill={fill}
+            cx={x + maxDotRadius/2}
+            cy={y+maxDotRadius/2}/>
+          circles.push(circle)
         }
       }
-    }
-    setReferenceImageData(copyImageData)
+    return <g style={{
+      transform: `rotate(${-rotation}deg) translate(${-xTranslate}px, ${-yTranslate}px)`
+    }} key={key} data-index={key}>{circles}</g>
   }
+
+
+  function save(){
+
+  }
+
+
+
 
   //  _    ___ ___ _____ ___ _  _ ___ ___  ___
   // | |  |_ _/ __|_   _| __| \| | __| _ \/ __|
@@ -148,24 +112,25 @@ function App() {
     }
   }, [canvasRef])
 
-  useEffect(()=> {
-    if (referenceImageData) {
-      ctx.putImageData(referenceImageData, 0, 0)
-    }
-  }, [referenceImageData])
-
   return (
     <div className="App">
       <div>
         <input type="file" id="fileUpload" onChange={handleUpload}/>
-        <button onClick={()=> test()}>GetData</button>
+        <button onClick={halftoneSVG}>Halftone</button>
+        <button onClick={save}>Save Halftone Image</button>
       </div>
       <canvas className="canvas" ref={canvasRef}></canvas>
       <svg  className="svg canvas" ref={svgRef}>
-        {circles}
+        {groups}
       </svg>
     </div>
   );
 }
 
 export default App;
+
+
+//  _  _ ___ _    ___ ___ ___  ___
+// | || | __| |  | _ \ __| _ \/ __|
+// | __ | _|| |__|  _/ _||   /\__ \
+// |_||_|___|____|_| |___|_|_\|___/
