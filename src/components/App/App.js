@@ -5,35 +5,41 @@ import {
   averageChannelValueFromMatrix,
   getRotatedImage,
 } from '../../lib/utils'
+import {Button, Space} from 'antd'
+import 'antd/dist/antd.min.css';
 import './App.css';
+import Settings from '../Settings/Settings';
+import {layers as layerSettings} from '../Settings/defaults'
 
 function App() {
   const canvasRef = useRef()
   const svgRef = useRef()
+  const [showSettings, setShowSettings] = useState(false)
   const [image, setImage] = useState()
   const canvas = canvasRef.current
   const [ctx, setCtx] = useState()
   const svg = svgRef.current
   const [groups, setGroups] = useState([])
+  const [layers, setLayers] = useState(layerSettings)
+  console.log("LAYERS", layers)
   //  ___ ___ _____ _____ ___ _  _  ___ ___
   // / __| __|_   _|_   _|_ _| \| |/ __/ __|
   // \__ \ _|  | |   | |  | || .` | (_ \__ \
   // |___/___| |_|   |_| |___|_|\_|\___|___/
 
-  const sampleDim = 5
+  const sampleDim = 8
   const maxDotRadius = sampleDim / 2
   const shape = "rect"
-  const layers = {
-    c: {rotation: 345, fill: "cyan"},
-    y: {rotation: 0, fill: 'yellow'},
-    m: {rotation: 15, fill: "magenta"},
-    k: {rotation: 75, fill: 'black'},
-  }
+
   //  _  _   _   _  _ ___  _    ___ ___
   // | || | /_\ | \| |   \| |  | __| _ \
   // | __ |/ _ \| .` | |) | |__| _||   /
   // |_||_/_/ \_\_|\_|___/|____|___|_|_\
   //
+
+  function handleShowSettings(){
+    setShowSettings(!showSettings)
+  }
 
   function handleUpload(data){
     const fileReader = new FileReader()
@@ -130,10 +136,14 @@ function App() {
 
   return (
     <div className="App">
+      <Button onClick={handleShowSettings}>Settings</Button>
+      <Settings visible={showSettings} close={handleShowSettings}/>
       <div>
         <input type="file" id="fileUpload" onChange={handleUpload}/>
-        <button onClick={halftoneSVG}>Halftone</button>
-        <button onClick={save}>Save Halftone SVG</button>
+        <Space>
+        <Button type="primary" onClick={halftoneSVG}>Process Halftone</Button>
+        <Button type="primary" onClick={save}>Save Halftone SVG</Button>
+        </Space>
       </div>
       <canvas className="canvas" ref={canvasRef}></canvas>
       <svg  className="svg canvas" ref={svgRef}>
@@ -144,9 +154,3 @@ function App() {
 }
 
 export default App;
-
-
-//  _  _ ___ _    ___ ___ ___  ___
-// | || | __| |  | _ \ __| _ \/ __|
-// | __ | _|| |__|  _/ _||   /\__ \
-// |_||_|___|____|_| |___|_|_\|___/
