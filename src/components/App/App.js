@@ -27,9 +27,15 @@ function App() {
   // \__ \ _|  | |   | |  | || .` | (_ \__ \
   // |___/___| |_|   |_| |___|_|\_|\___|___/
 
-  const sampleDim = 8
-  const maxDotRadius = sampleDim / 2
-  const shape = "rect"
+  const sampleDim = 15 // number of pixels to use
+  const shape = "circle"
+  const maxDotSize = shape === "circle" ? sampleDim / 2 : sampleDim
+  const maxPrintDotSize = 1 // in inches
+  const printWidth = 10
+  const printHeight = 12
+  const bufferInDots = 1
+  const dpiOfImage = 72
+
 
   //  _  _   _   _  _ ___  _    ___ ___
   // | || | /_\ | \| |   \| |  | __| _ \
@@ -73,8 +79,11 @@ function App() {
     // reset image
     getRotatedImage(image, ctx, 0)
     setGroups(groups)
-    console.log("DONE!!")
   }
+
+  // function split(){
+  //   const sampleW =
+  // }
 
   function halftoneLayer(ctx, key, fill, rotation, xTranslate, yTranslate){
     const {width, height} = ctx.canvas
@@ -84,21 +93,22 @@ function App() {
       for (let y = 0; y < height - sampleDim; y += sampleDim){
           const m = getMatrix(imageData, x, y, sampleDim, key === 'k')
           const avg = averageChannelValueFromMatrix(m, key) || 0
-          const radius = maxDotRadius * avg
+          let sizeFactor = (maxDotSize * avg)
           let shapeToAdd;
-          if(radius){
+          if(sizeFactor){
+            // sizeFactor = sizeFactor.toFixed(4)
             if(shape === 'circle') {
               shapeToAdd = <circle
               key={`${key}-${x}.${y}`}
-              r={radius}
+              r={sizeFactor}
               fill={fill}
-              cx={x + maxDotRadius/2}
-              cy={y+maxDotRadius/2}/>
+              cx={x + maxDotSize/2}
+              cy={y + maxDotSize/2}/>
             } else {
               shapeToAdd = <rect
               key={`${key}-${x}.${y}`}
-              width={radius * 2}
-              height={radius * 2}
+              width={sizeFactor}
+              height={sizeFactor}
               fill={fill}
               x={x}
               y={y}/>
@@ -115,7 +125,9 @@ function App() {
 
   function save(){
     const svg_data = svgRef.current.innerHTML
-    const head = '<svg title="graph" version="1.1" xmlns="http://www.w3.org/2000/svg">'
+    const w = image.width
+    const h = image.height
+    const head = `<svg title="graph" version="1.1" xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">`
     const style = "<style></style>"
     const full_svg = head +  style + svg_data + "</svg>"
     const blob = new Blob([full_svg], {type: "image/svg+xml"});
