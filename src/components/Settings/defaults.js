@@ -13,4 +13,4 @@ export const inverseLayers = {
   k: { rotation: 135, fill: 'black' },
 }
 
-export const layerOrder = ["w", "k", "c", "y", "m"]   
+export const layerOrder = ["w", "c", "y", "m", "k",]   

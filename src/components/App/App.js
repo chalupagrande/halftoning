@@ -41,6 +41,7 @@ function App() {
   const [printerWidth, setPrinterWidth] = useState(curDefaults.printerDivisionSizeX)
   const [printerHeight, setPrinterHeight] = useState(curDefaults.printerDivisionSizeY)
   const [previewChopsGroups, setPreviewChopsGroups] = useState(false)
+  const appRef = useRef()
   //  ___ ___ _____ _____ ___ _  _  ___ ___
   // / __| __|_   _|_   _|_ _| \| |/ __/ __|
   // \__ \ _|  | |   | |  | || .` | (_ \__ \
@@ -188,7 +189,7 @@ function App() {
     FileSaver.saveAs(blob, "halftone.svg");
   }
 
-  function saveChopped() {
+  async function saveChopped() {
     const folder = zip.folder("chopped-svg")
 
     let sortedEntries = Object.entries(layers).sort((a, b) => {
@@ -204,11 +205,27 @@ function App() {
         for (let x = 0; x < numXChops; x++) {
           const startX = x * chopSizeInPixelsX
           const startY = y * chopSizeInPixelsY
-          const head = `<svg title="graph" version="1.1" xmlns="http://www.w3.org/2000/svg" width="${chopSizeInPixelsX}" height="${chopSizeInPixelsY}" viewBox="${startX} ${startY} ${chopSizeInPixelsX} ${chopSizeInPixelsY}">`
-          const style = "<style></style>"
-          debugger
-          const full_svg = head + style + ReactDOMServer.renderToString(g) + "</svg>"
-          const blob = new Blob([full_svg], { type: "image/svg+xml" });
+          const head = `<svg id="saving-svg" title="halftone" version="1.1" xmlns="http://www.w3.org/2000/svg" width="${chopSizeInPixelsX}" height="${chopSizeInPixelsY}" viewBox="${startX} ${startY} ${chopSizeInPixelsX} ${chopSizeInPixelsY}" style="
+          position: absolute;
+          top: 0;
+          left:  0;
+      ">`
+          const full_svg = head + ReactDOMServer.renderToString(g) + "</svg>"
+          // append svg to dom
+          appRef.current.innerHTML += full_svg
+          const saving = document.getElementById("saving-svg")
+          const savingShapes = saving.querySelectorAll(shape)
+          savingShapes.forEach((shape) => {
+            const { x, y, width: shapeWidth, height: shapeHeight } = shape.getBoundingClientRect()
+            if (x + shapeWidth < 0 || x > chopSizeInPixelsX || y + shapeHeight < 0 || y > chopSizeInPixelsY) {
+              shape.remove()
+            }
+          })
+
+          const newFullSvg = head + saving.innerHTML + "</svg>"
+          saving.remove()
+
+          const blob = new Blob([newFullSvg], { type: "image/svg+xml" });
           folder.file(`${key}-chop-${x}-${y}.svg`, blob)
         }
       }
@@ -251,8 +268,7 @@ function App() {
   }, [canvasRef])
 
   return (
-    <div className="App">
-
+    <div className="App" ref={appRef}>
       <Space direction='horizontal' style={{ display: 'flex', justifyContent: "space-between" }}>
         <Space direction='vertical'>
           <div>
