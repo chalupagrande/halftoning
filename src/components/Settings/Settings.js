@@ -1,18 +1,19 @@
-import React, {useState} from 'react'
-import {Drawer, Form, Input, InputNumber, Select} from 'antd'
-import {layers as ls} from './defaults'
+import React, { useState } from 'react'
+
+import { Drawer, Form, Input, InputNumber, Select, Switch } from 'antd'
+import { layers as ls } from './defaults'
 import ColorInput from './ColorInput'
 import './Settings.css'
 
-function Settings({visible, close}){
+function Settings({ visible, close }) {
   const [layers, setLayers] = useState(ls)
 
   const formLayout = {
-    labelCol: {span: 8},
-    wrapperCol: {span: 20}
+    labelCol: { span: 8 },
+    wrapperCol: { span: 20 }
   }
 
-  function handleClose(){
+  function handleClose() {
     close()
   }
 
@@ -20,6 +21,12 @@ function Settings({visible, close}){
     <Drawer visible={visible} onClose={handleClose}>
       <div className="settings">
         <Form size='small' {...formLayout}>
+          <Form.Item
+            name="invert"
+            label="Invert"
+          >
+            <Switch checked={true} />
+          </Form.Item>
           <Form.Item
             name="dotType"
             label="Dot Type"
@@ -34,44 +41,44 @@ function Settings({visible, close}){
             name="dpi"
             label="Image DPI"
           >
-            <InputNumber/>
+            <InputNumber />
           </Form.Item>
           <Form.Item
             name="printWidth"
             label="Final Width"
           >
-            <InputNumber/>
+            <InputNumber />
           </Form.Item>
           <Form.Item
             name="printHeight"
             label="Final Height"
           >
-            <InputNumber/>
+            <InputNumber />
           </Form.Item>
           <h3>Colors</h3>
           <Form.Item
             name="cyan"
             label="Cyan"
           >
-            <ColorInput/>
+            <ColorInput />
           </Form.Item>
           <Form.Item
             name="magenta"
             label="Magenta"
           >
-            <ColorInput/>
+            <ColorInput />
           </Form.Item>
           <Form.Item
             name="yellow"
             label="Yellow"
           >
-            <ColorInput/>
+            <ColorInput />
           </Form.Item>
           <Form.Item
             name="black"
             label="Black"
           >
-            <ColorInput/>
+            <ColorInput />
           </Form.Item>
         </Form>
       </div>
