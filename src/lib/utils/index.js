@@ -212,3 +212,7 @@ export function changeCanvasAspectRatio(originalCanvas, newAspectRatio) {
   originalContext.clearRect(0, 0, newWidth, newHeight);
   originalContext.drawImage(tempCanvas, 0, 0, newWidth, newHeight);
 }
+
+export function triangularNumber(n) {
+  return n * (n + 1) / 2
+}

@@ -6,7 +6,6 @@ import {
   getMatrix,
   averageChannelValueFromMatrix,
   getRotatedImage,
-  changeCanvasAspectRatio
 } from '../../lib/utils'
 import { Button, Divider, InputNumber, Slider, Space, Switch } from 'antd'
 import 'antd/dist/antd.min.css';
@@ -18,7 +17,8 @@ const zip = new JSZip()
 
 const curDefaults = {
   printerDivisionSizeY: 237,
-  printerDivisionSizeX: 186.33,
+  printerDivisionSizeX: 186,
+  // size of a posterboard
   realY: 559,
   realX: 711
 }
@@ -37,11 +37,12 @@ function App() {
   const [showOriginal, setShowOriginal] = useState(false)
   const [greyScale, setGreyScale] = useState(true)
   const [isRect, setIsRect] = useState(true)
-  const [realWorldWidth, setRealWorldWidth] = useState(curDefaults.realX)
-  const [printerWidth, setPrinterWidth] = useState(curDefaults.printerDivisionSizeX)
-  const [printerHeight, setPrinterHeight] = useState(curDefaults.printerDivisionSizeY)
+  const [finalPieceWidthInMM, setFinalPieceHeightInMM] = useState(curDefaults.realX)
+  const [printableWidth, setPrintableWidth] = useState(curDefaults.printerDivisionSizeX)
+  const [printableHeight, setPrintableHeight] = useState(curDefaults.printerDivisionSizeY)
   const [previewChopsGroups, setPreviewChopsGroups] = useState(false)
-  const [smallestShape, setSmallestShape] = useState(0.3)
+  const [smallestShapeInMM, setSmallestShapeInMM] = useState(5)
+  const [overlapInMM, setOverlap] = useState(30)
   const appRef = useRef()
   //  ___ ___ _____ _____ ___ _  _  ___ ___
   // / __| __|_   _|_   _|_ _| \| |/ __/ __|
@@ -51,18 +52,32 @@ function App() {
   const shapeOptions = ["circle", "rect"]
   // const sampleDim = 7 // number of pixels to use
   const shape = isRect ? shapeOptions[1] : shapeOptions[0]
+  // if circle, max size is sampleDim / 2 (because it uses radius)
   const maxDotSize = shape === shapeOptions[0] ? sampleDim / 2 : sampleDim
   const invert = false
   const layers = invert ? inverseLayers : normalLayers
-  const width = ctx?.canvas?.width || 0
-  const height = ctx?.canvas?.height || 0
+  const widthInPx = ctx?.canvas?.width || 0
+  const heightInPx = ctx?.canvas?.height || 0
+  const finalPieceHeightInMM = finalPieceWidthInMM * heightInPx / widthInPx
+  const pixelsPerMMX = widthInPx / finalPieceWidthInMM
+  const pixelsPerMMY = heightInPx / finalPieceHeightInMM
+  const effectivePrintableWidthInMM = printableWidth - overlapInMM
+  const effectivePrintableHeightInMM = printableHeight - overlapInMM
+  const effectivePrintableWidthInPxX = effectivePrintableWidthInMM * pixelsPerMMX
+  const effectivePrintableWidthInPxY = effectivePrintableHeightInMM * pixelsPerMMY
+  const smallestShapeInPx = smallestShapeInMM * pixelsPerMMX
 
-  const realWorldHeight = realWorldWidth * height / width
-  const numXChops = realWorldWidth / printerWidth
-  const numYChops = realWorldHeight / printerHeight
-  const chopSizeInPixelsX = parseFloat((width && numXChops ? width / numXChops : 0).toFixed(2))
-  const chopSizeInPixelsY = parseFloat((height && numYChops ? height / numYChops : 0).toFixed(2))
+  const printableWidthInPxX = printableWidth * pixelsPerMMX
+  const printableWidthInPxY = printableHeight * pixelsPerMMY
+  // const numXChops = finalPieceRealWorldWidth / printableWidth 
+  // const numYChops = finalPieceRealWorldHeight / printableHeight
+  const numXChops = Math.ceil(widthInPx / effectivePrintableWidthInPxX)
+  const numYChops = Math.ceil(heightInPx / effectivePrintableWidthInPxY)
+  const chopSizeInPixelsX = parseFloat((widthInPx && numXChops ? widthInPx / numXChops : 0).toFixed(2))
+  const chopSizeInPixelsY = parseFloat((heightInPx && numYChops ? heightInPx / numYChops : 0).toFixed(2))
 
+
+  console.log(pixelsPerMMX, pixelsPerMMY)
 
   //  _  _   _   _  _ ___  _    ___ ___
   // | || | /_\ | \| |   \| |  | __| _ \
@@ -122,16 +137,6 @@ function App() {
       const g = halftoneLayer(ctx, key, fill, rotation, xTranslate, yTranslate)
       groups.push(g)
     }
-    if (invert) {
-      groups.unshift(<g className="background">
-        <rect
-          key="background"
-          x={0}
-          y={0}
-          width={width}
-          height={height} />
-      </g>)
-    }
     // reset image
     getRotatedImage(image, ctx, 0)
     setGroups(groups)
@@ -148,10 +153,8 @@ function App() {
         const m = getMatrix(imageData, x, y, sampleDim)
         const avg = averageChannelValueFromMatrix(m, key) || 0
         let sizeFactor = (maxDotSize * avg)
-        // TODO: figure out how to invert
-        if (key === "w" && avg === 1) continue
         let shapeToAdd;
-        if (sizeFactor && sizeFactor > smallestShape) {
+        if (sizeFactor && sizeFactor > smallestShapeInPx) {
           sizeFactor = sizeFactor.toFixed(4)
           if (shape === 'circle') {
             shapeToAdd = <circle
@@ -180,16 +183,16 @@ function App() {
   }
 
   function handleWidthUpdate(v) {
-    setRealWorldWidth(v)
+    setFinalPieceHeightInMM(v)
 
   }
 
   function handlePrinterWidthUpdate(v) {
-    setPrinterWidth(v)
+    setPrintableWidth(v)
   }
 
   function handlePrinterHeightUpdate(v) {
-    setPrinterHeight(v)
+    setPrintableHeight(v)
   }
 
   function save() {
@@ -231,38 +234,28 @@ function App() {
           const savingShapes = saving.querySelectorAll(shape)
           savingShapes.forEach((shape) => {
             const { x, y, width: shapeWidth, height: shapeHeight } = shape.getBoundingClientRect()
-            // if (
-            //   x + shapeWidth < 0 ||
-            //   x > chopSizeInPixelsX ||
-            //   y + shapeHeight < 0 ||
-            //   y > chopSizeInPixelsY
-            // ) {
-            //   // shape.remove()
-            //   shape.setAttribute("fill", "red")
-            // }
-            let overlap = 10
             if (
-              x + shapeWidth < -overlap
+              x + shapeWidth < -overlapInMM
             ) {
               shape.setAttribute("fill", "yellow")
             }
             if (
-              x > chopSizeInPixelsX + overlap
+              x > chopSizeInPixelsX + overlapInMM
             ) {
               shape.setAttribute("fill", "green")
             }
             if (
-              y + shapeHeight < 0 - overlap
+              y + shapeHeight < 0 - overlapInMM
             ) {
               shape.setAttribute("fill", "blue")
             }
             if (
-              y > chopSizeInPixelsY + overlap
+              y > chopSizeInPixelsY + overlapInMM
             ) {
               shape.setAttribute("fill", "orange")
             }
             if (
-              !(x + shapeWidth < overlap ||
+              !(x + shapeWidth < overlapInMM ||
                 x > chopSizeInPixelsX ||
                 y + shapeHeight < 0 ||
                 y > chopSizeInPixelsY)
@@ -288,9 +281,14 @@ function App() {
   function previewChops(shouldShow) {
     if (shouldShow) {
       const chopSquares = []
+      const overlapInPxX = overlapInMM * pixelsPerMMX
+      const overlapInPxY = overlapInMM * pixelsPerMMY
       for (let y = 0; y < numYChops; y++) {
         for (let x = 0; x < numXChops; x++) {
-          chopSquares.push(<rect key={`${x}.${y}`} stroke="red" strokeWidth={1} fill="none" x={x * chopSizeInPixelsX} y={y * chopSizeInPixelsY} width={chopSizeInPixelsX} height={chopSizeInPixelsY} />)
+          const color = (x + y) % 2 === 0 ? "red" : "blue"
+          const xPos = x * printableWidthInPxX - (overlapInPxX * x)
+          const yPos = y * printableWidthInPxY - (overlapInPxY * y)
+          chopSquares.push(<rect key={`${x}.${y}`} stroke={color} strokeWidth={1} fill="none" x={xPos} y={yPos} width={printableWidthInPxX} height={printableWidthInPxY} />)
         }
       }
       const chopGroup = <g key="chops" className="chops">{chopSquares}</g>
@@ -318,6 +316,7 @@ function App() {
     <div className="App" ref={appRef}>
       <Space direction='horizontal' style={{ display: 'flex', justifyContent: "space-between" }}>
         <Space direction='vertical'>
+          <h3 className="underline">Halftone Settings</h3>
           <div>
             <label>Sample Size: <strong>{sampleDim}</strong></label>
             <Slider onChange={(v) => setSampleDim(v)} value={sampleDim} min={3} max={100} />
@@ -334,37 +333,33 @@ function App() {
             <label>Use Rectangles</label>
             <Switch checked={isRect} onChange={setIsRect} />
           </div>
+          <div>
+            <label>smallest shape (mm)</label>
+            <InputNumber onChange={setSmallestShapeInMM} value={smallestShapeInMM} />
+          </div>
         </Space>
         <Divider type='vertical' />
         <Space direction='vertical'>
-          <h4>Printer Settings</h4>
+          <h3 className="underline">Printer Settings</h3>
           <div>
             <label>Real World Width (mm)</label>
-            <InputNumber onChange={handleWidthUpdate} value={realWorldWidth} />
+            <InputNumber onChange={handleWidthUpdate} value={finalPieceWidthInMM} />
           </div>
           <div>
             <label>Real World Height (mm)</label>
-            <InputNumber value={realWorldHeight} />
-          </div>
-          <div>
-            <label>Num X Chops</label>
-            <InputNumber value={numXChops} disabled />
-          </div>
-          <div>
-            <label>Num Y Chops</label>
-            <InputNumber value={numYChops} disabled />
+            <InputNumber value={finalPieceHeightInMM} />
           </div>
           <div>
             <label>Printer Width (mm)</label>
-            <InputNumber onChange={handlePrinterWidthUpdate} value={printerWidth} />
+            <InputNumber onChange={handlePrinterWidthUpdate} value={printableWidth} />
           </div>
           <div>
             <label>Printer Height (mm)</label>
-            <InputNumber onChange={handlePrinterHeightUpdate} value={printerHeight} />
+            <InputNumber onChange={handlePrinterHeightUpdate} value={printableHeight} />
           </div>
           <div>
-            <label>smallest shape (px)</label>
-            <InputNumber onChange={setSmallestShape} value={smallestShape} />
+            <label>Overlap (mm)</label>
+            <InputNumber onChange={setOverlap} value={overlapInMM} />
           </div>
         </Space>
         <Divider type="vertical" />
@@ -372,7 +367,9 @@ function App() {
 
           <h4>Chop Size X (px): {chopSizeInPixelsX}</h4>
           <h4>Chop Size Y (px): {chopSizeInPixelsY}</h4>
-          <h4>Width / Height px: {width} x {height}</h4>
+          <h4>Num X Chops: {numXChops}</h4>
+          <h4>Num Y Chops: {numYChops}</h4>
+          <h4>Width / Height px: {widthInPx} x {heightInPx}</h4>
 
           <label>Show Chops Preview</label>
           <Switch checked={!!previewChopsGroups} onChange={previewChops} />
@@ -392,7 +389,7 @@ function App() {
       </div>
       <Divider />
       <canvas className="canvas" style={{ display: showOriginal ? "block" : "none" }} ref={canvasRef}></canvas>
-      <svg className="svg" width={width} height={height} ref={svgRef} viewBox={`0 0 ${width} ${height}`}>
+      <svg className="svg" width={widthInPx} height={heightInPx} ref={svgRef} viewBox={`0 0 ${widthInPx} ${heightInPx}`}>
         {groups}
         {previewChopsGroups}
       </svg>
