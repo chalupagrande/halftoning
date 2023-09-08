@@ -41,6 +41,7 @@ function App() {
   const [printerWidth, setPrinterWidth] = useState(curDefaults.printerDivisionSizeX)
   const [printerHeight, setPrinterHeight] = useState(curDefaults.printerDivisionSizeY)
   const [previewChopsGroups, setPreviewChopsGroups] = useState(false)
+  const [smallestShape, setSmallestShape] = useState(0.3)
   const appRef = useRef()
   //  ___ ___ _____ _____ ___ _  _  ___ ___
   // / __| __|_   _|_   _|_ _| \| |/ __/ __|
@@ -92,6 +93,20 @@ function App() {
 
   }
 
+  function handleSVGUpload(data) {
+    const fileReader = new FileReader()
+    fileReader.addEventListener("load", (e) => {
+      console.log(e.target.result)
+      debugger
+      const b64 = e.target.result.split(",")[1]
+      console.log(b64)
+      const svgData = atob(b64)
+      svgRef.current.innerHTML = svgData
+    })
+    fileReader.readAsDataURL(data.target.files[0])
+
+  }
+
 
   function halftoneSVG() {
     // loop over layers
@@ -137,7 +152,7 @@ function App() {
         // TODO: figure out how to invert
         if (key === "w" && avg === 1) continue
         let shapeToAdd;
-        if (sizeFactor) {
+        if (sizeFactor && sizeFactor > smallestShape) {
           sizeFactor = sizeFactor.toFixed(4)
           if (shape === 'circle') {
             shapeToAdd = <circle
@@ -253,8 +268,6 @@ function App() {
   }
 
 
-
-
   //  _    ___ ___ _____ ___ _  _ ___ ___  ___
   // | |  |_ _/ __|_   _| __| \| | __| _ \/ __|
   // | |__ | |\__ \ | | | _|| .` | _||   /\__ \
@@ -315,6 +328,10 @@ function App() {
             <label>Printer Height (mm)</label>
             <InputNumber onChange={handlePrinterHeightUpdate} value={printerHeight} />
           </div>
+          <div>
+            <label>smallest shape (px)</label>
+            <InputNumber onChange={setSmallestShape} value={smallestShape} />
+          </div>
         </Space>
         <Divider type="vertical" />
         <Space direction='vertical'>
@@ -329,12 +346,15 @@ function App() {
       </Space>
       <Divider />
       <div>
-        <input type="file" id="fileUpload" onChange={handleUpload} />
         <Space>
+          <label htmlFor="fileUpload">Upload Image</label>
+          <input type="file" id="fileUpload" onChange={handleUpload} />
           <Button type="primary" onClick={() => halftoneSVG()}>Process Halftone</Button>
           <Button type="primary" onClick={save}>Save Halftone SVG</Button>
           <Button type="primary" onClick={saveChopped}>Save Chopped SVG</Button>
         </Space>
+        <label htmlFor="fileUpload">Upload SVG</label>
+        <input type="file" id="fileUpload" onChange={handleSVGUpload} />
       </div>
       <Divider />
       <canvas className="canvas" style={{ display: showOriginal ? "block" : "none" }} ref={canvasRef}></canvas>
@@ -342,6 +362,7 @@ function App() {
         {groups}
         {previewChopsGroups}
       </svg>
+
     </div>
   );
 }
