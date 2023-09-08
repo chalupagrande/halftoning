@@ -27,12 +27,16 @@ const curDefaults = {
 function App() {
   const canvasRef = useRef()
   const svgRef = useRef()
+  const svg = svgRef.current
   const [showSettings, setShowSettings] = useState(false)
   const [image, setImage] = useState()
   const canvas = canvasRef.current
   const [ctx, setCtx] = useState()
-  const svg = svgRef.current
   const [groups, setGroups] = useState([])
+  //  ___ ___ _____ _____ ___ _  _  ___ ___
+  // / __| __|_   _|_   _|_ _| \| |/ __/ __|
+  // \__ \ _|  | |   | |  | || .` | (_ \__ \
+  // |___/___| |_|   |_| |___|_|\_|\___|___/
   const [sampleDim, setSampleDim] = useState(10)
   const [showOriginal, setShowOriginal] = useState(false)
   const [greyScale, setGreyScale] = useState(true)
@@ -41,13 +45,15 @@ function App() {
   const [printableWidth, setPrintableWidth] = useState(curDefaults.printerDivisionSizeX)
   const [printableHeight, setPrintableHeight] = useState(curDefaults.printerDivisionSizeY)
   const [previewChopsGroups, setPreviewChopsGroups] = useState(false)
-  const [smallestShapeInMM, setSmallestShapeInMM] = useState(5)
-  const [overlapInMM, setOverlap] = useState(30)
+  const [smallestShapeInMM, setSmallestShapeInMM] = useState(1)
+  const [overlapInMM, setOverlap] = useState(20)
   const appRef = useRef()
-  //  ___ ___ _____ _____ ___ _  _  ___ ___
-  // / __| __|_   _|_   _|_ _| \| |/ __/ __|
-  // \__ \ _|  | |   | |  | || .` | (_ \__ \
-  // |___/___| |_|   |_| |___|_|\_|\___|___/
+
+
+  //      ___   _   _    ___ _   _ _      _ _____ ___ ___   __   ___   _   _   _ ___ ___ 
+  //     / __| /_\ | |  / __| | | | |    /_\_   _| __|   \  \ \ / /_\ | | | | | | __/ __|
+  //    | (__ / _ \| |_| (__| |_| | |__ / _ \| | | _|| |) |  \ V / _ \| |_| |_| | _|\__ \
+  //     \___/_/ \_\____\___|\___/|____/_/ \_\_| |___|___/    \_/_/ \_\____\___/|___|___/
 
   const shapeOptions = ["circle", "rect"]
   // const sampleDim = 7 // number of pixels to use
@@ -67,17 +73,12 @@ function App() {
   const effectivePrintableWidthInPxY = effectivePrintableHeightInMM * pixelsPerMMY
   const smallestShapeInPx = smallestShapeInMM * pixelsPerMMX
 
-  const printableWidthInPxX = printableWidth * pixelsPerMMX
-  const printableWidthInPxY = printableHeight * pixelsPerMMY
-  // const numXChops = finalPieceRealWorldWidth / printableWidth 
-  // const numYChops = finalPieceRealWorldHeight / printableHeight
+  const printableWidthInPx = printableWidth * pixelsPerMMX
+  const printableHeightInPx = printableHeight * pixelsPerMMY
   const numXChops = Math.ceil(widthInPx / effectivePrintableWidthInPxX)
   const numYChops = Math.ceil(heightInPx / effectivePrintableWidthInPxY)
-  const chopSizeInPixelsX = parseFloat((widthInPx && numXChops ? widthInPx / numXChops : 0).toFixed(2))
-  const chopSizeInPixelsY = parseFloat((heightInPx && numYChops ? heightInPx / numYChops : 0).toFixed(2))
-
-
-  console.log(pixelsPerMMX, pixelsPerMMY)
+  const overlapInPxX = overlapInMM * pixelsPerMMX
+  const overlapInPxY = overlapInMM * pixelsPerMMY
 
   //  _  _   _   _  _ ___  _    ___ ___
   // | || | /_\ | \| |   \| |  | __| _ \
@@ -124,7 +125,6 @@ function App() {
 
   function halftoneSVG() {
     // loop over layers
-    const { width, height } = ctx.canvas
     const groups = []
     let sortedEntries = Object.entries(layers).sort((a, b) => {
       return layerOrder.indexOf(a[0]) - layerOrder.indexOf(b[0])
@@ -146,7 +146,7 @@ function App() {
   function halftoneLayer(ctx, key, fill, rotation, xTranslate, yTranslate) {
     const { width, height } = ctx.canvas
     const imageData = ctx.getImageData(0, 0, width, height)
-    const circles = []
+    const shapes = []
 
     for (let x = 0; x < width - sampleDim; x += sampleDim) {
       for (let y = 0; y < height - sampleDim; y += sampleDim) {
@@ -173,27 +173,15 @@ function App() {
               y={y} />
           }
 
-          circles.push(shapeToAdd)
+          shapes.push(shapeToAdd)
         }
       }
     }
     return <g style={{
       transform: `rotate(${-rotation}deg) translate(${-xTranslate}px, ${-yTranslate}px)`
-    }} key={key} data-index={key}>{circles}</g>
+    }} key={key} data-index={key}>{shapes}</g>
   }
 
-  function handleWidthUpdate(v) {
-    setFinalPieceHeightInMM(v)
-
-  }
-
-  function handlePrinterWidthUpdate(v) {
-    setPrintableWidth(v)
-  }
-
-  function handlePrinterHeightUpdate(v) {
-    setPrintableHeight(v)
-  }
 
   function save() {
     const svg_data = svgRef.current.innerHTML
@@ -220,9 +208,9 @@ function App() {
       const g = halftoneLayer(ctx, key, fill, rotation, xTranslate, yTranslate)
       for (let y = 0; y < numYChops; y++) {
         for (let x = 0; x < numXChops; x++) {
-          const startX = x * chopSizeInPixelsX
-          const startY = y * chopSizeInPixelsY
-          const head = `<svg id="saving-svg" title="halftone" version="1.1" xmlns="http://www.w3.org/2000/svg" width="${chopSizeInPixelsX}" height="${chopSizeInPixelsY}" viewBox="${startX} ${startY} ${chopSizeInPixelsX} ${chopSizeInPixelsY}" style="
+          const startX = x * printableWidthInPx - (overlapInPxX * x)
+          const startY = y * printableHeightInPx - (overlapInPxY * y)
+          const head = `<svg id="saving-svg" title="halftone" version="1.1" xmlns="http://www.w3.org/2000/svg" width="${printableWidthInPx}" height="${printableHeightInPx}" viewBox="${startX} ${startY} ${printableWidthInPx} ${printableHeightInPx}" style="
                           position: absolute;
                           top: 0;
                           left:  0;
@@ -235,32 +223,12 @@ function App() {
           savingShapes.forEach((shape) => {
             const { x, y, width: shapeWidth, height: shapeHeight } = shape.getBoundingClientRect()
             if (
-              x + shapeWidth < -overlapInMM
+              x + shapeWidth < 0 ||
+              x > printableWidthInPx ||
+              y + shapeHeight < 0 ||
+              y > printableHeightInPx
             ) {
-              shape.setAttribute("fill", "yellow")
-            }
-            if (
-              x > chopSizeInPixelsX + overlapInMM
-            ) {
-              shape.setAttribute("fill", "green")
-            }
-            if (
-              y + shapeHeight < 0 - overlapInMM
-            ) {
-              shape.setAttribute("fill", "blue")
-            }
-            if (
-              y > chopSizeInPixelsY + overlapInMM
-            ) {
-              shape.setAttribute("fill", "orange")
-            }
-            if (
-              !(x + shapeWidth < overlapInMM ||
-                x > chopSizeInPixelsX ||
-                y + shapeHeight < 0 ||
-                y > chopSizeInPixelsY)
-            ) {
-              shape.setAttribute("fill", "red")
+              shape.remove()
             }
           })
 
@@ -281,14 +249,13 @@ function App() {
   function previewChops(shouldShow) {
     if (shouldShow) {
       const chopSquares = []
-      const overlapInPxX = overlapInMM * pixelsPerMMX
-      const overlapInPxY = overlapInMM * pixelsPerMMY
+
       for (let y = 0; y < numYChops; y++) {
         for (let x = 0; x < numXChops; x++) {
           const color = (x + y) % 2 === 0 ? "red" : "blue"
-          const xPos = x * printableWidthInPxX - (overlapInPxX * x)
-          const yPos = y * printableWidthInPxY - (overlapInPxY * y)
-          chopSquares.push(<rect key={`${x}.${y}`} stroke={color} strokeWidth={1} fill="none" x={xPos} y={yPos} width={printableWidthInPxX} height={printableWidthInPxY} />)
+          const xPos = x * printableWidthInPx - (overlapInPxX * x)
+          const yPos = y * printableHeightInPx - (overlapInPxY * y)
+          chopSquares.push(<rect key={`${x}.${y}`} stroke={color} strokeWidth={1} fill="none" x={xPos} y={yPos} width={printableWidthInPx} height={printableHeightInPx} />)
         }
       }
       const chopGroup = <g key="chops" className="chops">{chopSquares}</g>
@@ -343,19 +310,19 @@ function App() {
           <h3 className="underline">Printer Settings</h3>
           <div>
             <label>Real World Width (mm)</label>
-            <InputNumber onChange={handleWidthUpdate} value={finalPieceWidthInMM} />
+            <InputNumber onChange={setFinalPieceHeightInMM} value={finalPieceWidthInMM} />
           </div>
           <div>
             <label>Real World Height (mm)</label>
             <InputNumber value={finalPieceHeightInMM} />
           </div>
           <div>
-            <label>Printer Width (mm)</label>
-            <InputNumber onChange={handlePrinterWidthUpdate} value={printableWidth} />
+            <label>Printable Width (mm)</label>
+            <InputNumber onChange={setPrintableWidth} value={printableWidth} />
           </div>
           <div>
-            <label>Printer Height (mm)</label>
-            <InputNumber onChange={handlePrinterHeightUpdate} value={printableHeight} />
+            <label>Printable Height (mm)</label>
+            <InputNumber onChange={setPrintableHeight} value={printableHeight} />
           </div>
           <div>
             <label>Overlap (mm)</label>
@@ -365,8 +332,8 @@ function App() {
         <Divider type="vertical" />
         <Space direction='vertical'>
 
-          <h4>Chop Size X (px): {chopSizeInPixelsX}</h4>
-          <h4>Chop Size Y (px): {chopSizeInPixelsY}</h4>
+          <h4>Chop Size X (px): {printableWidthInPx}</h4>
+          <h4>Chop Size Y (px): {printableHeightInPx}</h4>
           <h4>Num X Chops: {numXChops}</h4>
           <h4>Num Y Chops: {numYChops}</h4>
           <h4>Width / Height px: {widthInPx} x {heightInPx}</h4>
