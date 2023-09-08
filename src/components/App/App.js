@@ -34,9 +34,9 @@ function App() {
   const svg = svgRef.current
   const [groups, setGroups] = useState([])
   const [sampleDim, setSampleDim] = useState(10)
-  const [showOriginal, setShowOriginal] = useState(true)
-  const [greyScale, setGreyScale] = useState(false)
-  const [isRect, setIsRect] = useState(false)
+  const [showOriginal, setShowOriginal] = useState(false)
+  const [greyScale, setGreyScale] = useState(true)
+  const [isRect, setIsRect] = useState(true)
   const [realWorldWidth, setRealWorldWidth] = useState(curDefaults.realX)
   const [printerWidth, setPrinterWidth] = useState(curDefaults.printerDivisionSizeX)
   const [printerHeight, setPrinterHeight] = useState(curDefaults.printerDivisionSizeY)
@@ -60,8 +60,8 @@ function App() {
   const realWorldHeight = realWorldWidth * height / width
   const numXChops = realWorldWidth / printerWidth
   const numYChops = realWorldHeight / printerHeight
-  const chopSizeInPixelsX = (width && numXChops ? width / numXChops : 0).toFixed(2)
-  const chopSizeInPixelsY = (height && numYChops ? height / numYChops : 0).toFixed(2)
+  const chopSizeInPixelsX = parseFloat((width && numXChops ? width / numXChops : 0).toFixed(2))
+  const chopSizeInPixelsY = parseFloat((height && numYChops ? height / numYChops : 0).toFixed(2))
 
 
   //  _  _   _   _  _ ___  _    ___ ___
@@ -231,13 +231,43 @@ function App() {
           const savingShapes = saving.querySelectorAll(shape)
           savingShapes.forEach((shape) => {
             const { x, y, width: shapeWidth, height: shapeHeight } = shape.getBoundingClientRect()
+            // if (
+            //   x + shapeWidth < 0 ||
+            //   x > chopSizeInPixelsX ||
+            //   y + shapeHeight < 0 ||
+            //   y > chopSizeInPixelsY
+            // ) {
+            //   // shape.remove()
+            //   shape.setAttribute("fill", "red")
+            // }
+            let overlap = 10
             if (
-              x + shapeWidth < 0 ||
-              x > chopSizeInPixelsX ||
-              y + shapeHeight < 0 ||
-              y > chopSizeInPixelsY
+              x + shapeWidth < -overlap
             ) {
-              shape.remove()
+              shape.setAttribute("fill", "yellow")
+            }
+            if (
+              x > chopSizeInPixelsX + overlap
+            ) {
+              shape.setAttribute("fill", "green")
+            }
+            if (
+              y + shapeHeight < 0 - overlap
+            ) {
+              shape.setAttribute("fill", "blue")
+            }
+            if (
+              y > chopSizeInPixelsY + overlap
+            ) {
+              shape.setAttribute("fill", "orange")
+            }
+            if (
+              !(x + shapeWidth < overlap ||
+                x > chopSizeInPixelsX ||
+                y + shapeHeight < 0 ||
+                y > chopSizeInPixelsY)
+            ) {
+              shape.setAttribute("fill", "red")
             }
           })
 
