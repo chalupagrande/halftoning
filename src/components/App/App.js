@@ -231,7 +231,12 @@ function App() {
           const savingShapes = saving.querySelectorAll(shape)
           savingShapes.forEach((shape) => {
             const { x, y, width: shapeWidth, height: shapeHeight } = shape.getBoundingClientRect()
-            if (x + shapeWidth < 0 || x > chopSizeInPixelsX || y + shapeHeight < 0 || y > chopSizeInPixelsY) {
+            if (
+              x + shapeWidth < 0 ||
+              x > chopSizeInPixelsX ||
+              y + shapeHeight < 0 ||
+              y > chopSizeInPixelsY
+            ) {
               shape.remove()
             }
           })
